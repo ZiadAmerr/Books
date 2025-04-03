@@ -1,4 +1,5 @@
 *.un~
 Cargo.lock
 target/
+*.vcd
 

@@ -1,24 +1,25 @@
-use actix_web :: {web, App, HttpResponse, HttpServer};
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 
-fn main() {
-    HttpServer::new(|| {
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let server = HttpServer::new(|| {
         App::new()
-            .route("/", web::get().to(get_index))
+            .route("/", web::get().to(get_index)) // ✅ Uses async handler
     });
 
     println!("Starting server on http://localhost:3000");
 
-    server
-        .bind("127.0.0.1:3000")  // bind the server to the address
-        .expect("error binding server to address")  // if the server can't bind to the address, print an error message
-        .run()  // run the server
-        .expect("error running server");  // if the server can't run, print an error message
+    server.bind("127.0.0.1:3000")?.run().await // ✅ Awaiting the server
+
+    // Terminate
+
+    // Another
 }
 
-fn get_index() -> HttpResponse {
+async fn get_index() -> impl Responder {
     HttpResponse::Ok().content_type("text/html").body(
         r#"
-        <doctype !html>
+        <!DOCTYPE html>
         <html>
             <head>
                 <title>GCD Calculator</title>
