@@ -1,7 +1,7 @@
-use std::fs::{create_dir_all, File};
-use std::io::{self, BufWriter, Write};
 use chrono::Utc;
 use rayon::prelude::*;
+use std::fs::{File, create_dir_all};
+use std::io::{self, BufWriter, Write};
 
 /// Creates one VCD file with a simple header and a single toggling signal.
 /// The VCD file will have num_steps simulation time steps.
@@ -59,7 +59,8 @@ pub fn generate_multiple_vcd_files() -> io::Result<()> {
             (1..=20)
                 .into_par_iter()
                 .filter_map(move |file_index| {
-                    let file_name = format!("{}/vcd_output_{}_{}.vcd", category_dir, steps, file_index);
+                    let file_name =
+                        format!("{}/vcd_output_{}_{}.vcd", category_dir, steps, file_index);
                     println!("Creating {} with {} steps...", file_name, steps);
                     if let Err(e) = create_vcd_file(&file_name, steps) {
                         Some(format!("Error creating {}: {}", file_name, e))
@@ -73,7 +74,10 @@ pub fn generate_multiple_vcd_files() -> io::Result<()> {
 
     if !errors.is_empty() {
         // If any errors occurred, return the first error wrapped in an io::Error.
-        return Err(io::Error::new(io::ErrorKind::Other, format!("Errors occurred:\n{}", errors.join("\n"))));
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("Errors occurred:\n{}", errors.join("\n")),
+        ));
     }
 
     Ok(())

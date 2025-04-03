@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::fs::{read_dir, File};
-use std::io::{self, BufReader, BufRead};
+use std::fs::{File, read_dir};
+use std::io::{self, BufRead, BufReader};
 use std::time::Instant;
 
 /// Parses a single VCD file and returns a tuple (event_count, duration_ms)
@@ -61,7 +61,8 @@ pub fn parse_all_vcd_files(vcd_dir: &str) -> io::Result<()> {
     for (sim_steps, files) in groups {
         let category_start = Instant::now();
         // Process files concurrently.
-        let results: Vec<_> = files.par_iter()
+        let results: Vec<_> = files
+            .par_iter()
             .map(|file| match parse_vcd_file(file) {
                 Ok((events, _)) => (events, 0), // individual durations are ignored for wall-clock time
                 Err(e) => {
@@ -78,7 +79,15 @@ pub fn parse_all_vcd_files(vcd_dir: &str) -> io::Result<()> {
         // println!("  Processed {} files.", total_files);
         // println!("  Wall-clock parsing time: {} ms", wall_clock_time);
         // println!("  Average wall-clock time per file: {} ms", if total_files > 0 { wall_clock_time / (total_files as u64) } else { 0 });
-        println!("Category {} simulation steps took total {} ms to parse {} files with average of {} ms per file", sim_steps, wall_clock_time, total_files, if total_files > 0 { wall_clock_time / (total_files as u64) } else { 0 });
+        let average_time = if total_files > 0 {
+            wall_clock_time / (total_files as u64)
+        } else {
+            0
+        };
+        println!(
+            "Category {} simulation steps took total {} ms to parse {} files with average of {} ms per file",
+            sim_steps, wall_clock_time, total_files, average_time
+        );
     }
     Ok(())
 }
@@ -94,7 +103,7 @@ mod tests {
         match parse_vcd_file(test_file) {
             Ok((events, dur)) => {
                 println!("Test file parsed {} events in {} ms", events, dur);
-            },
+            }
             Err(e) => panic!("Error parsing file {}: {}", test_file, e),
         }
     }

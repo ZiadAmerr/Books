@@ -6,9 +6,18 @@ mod parser;
 
 fn print_usage(program_name: &str) {
     eprintln!("Usage:");
-    eprintln!("  {} create                - Create sample VCD files.", program_name);
-    eprintln!("  {} parse <filename>      - Parse the specified VCD file.", program_name);
-    eprintln!("  {} parse_all             - Parse all VCD files in the designated directory.", program_name);
+    eprintln!(
+        "  {} create                - Create sample VCD files.",
+        program_name
+    );
+    eprintln!(
+        "  {} parse <filename>      - Parse the specified VCD file.",
+        program_name
+    );
+    eprintln!(
+        "  {} parse_all             - Parse all VCD files in the designated directory.",
+        program_name
+    );
 }
 
 fn main() {
