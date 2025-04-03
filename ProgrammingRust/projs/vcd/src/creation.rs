@@ -41,7 +41,7 @@ pub fn create_vcd_file(file_name: &str, num_steps: u64) -> io::Result<()> {
 /// This version creates files in parallel using Rayon.
 pub fn generate_multiple_vcd_files() -> io::Result<()> {
     // Define the simulation lengths.
-    let simulation_lengths = [100_u64, 1_000, 10_000, 100_000, 1_000_000];
+    let simulation_lengths = [100_u64, 1_000, 10_000, 100_000, 1_000_000, 10_000_000];
 
     // Base directory for all VCD files.
     let target_dir = "./vcd_files";

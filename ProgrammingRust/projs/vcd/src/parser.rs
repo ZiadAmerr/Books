@@ -1,8 +1,12 @@
 use rayon::prelude::*;
 use std::collections::HashMap;
+use std::ffi::{CStr, CString};
 use std::fs::{File, read_dir};
 use std::io::{self, BufRead, BufReader};
+use std::os::raw::{c_char, c_void};
 use std::time::Instant;
+use serde::Serialize;
+use serde_json;
 
 /// Parses a single VCD file and returns a tuple (event_count, duration_ms)
 /// where duration_ms is the time taken in milliseconds.
@@ -75,10 +79,6 @@ pub fn parse_all_vcd_files(vcd_dir: &str) -> io::Result<()> {
         let wall_clock_time = category_start.elapsed().as_millis() as u64;
         let total_files = results.len();
 
-        // println!("Category: {} simulation steps", sim_steps);
-        // println!("  Processed {} files.", total_files);
-        // println!("  Wall-clock parsing time: {} ms", wall_clock_time);
-        // println!("  Average wall-clock time per file: {} ms", if total_files > 0 { wall_clock_time / (total_files as u64) } else { 0 });
         let average_time = if total_files > 0 {
             wall_clock_time / (total_files as u64)
         } else {
@@ -90,6 +90,72 @@ pub fn parse_all_vcd_files(vcd_dir: &str) -> io::Result<()> {
         );
     }
     Ok(())
+}
+
+/// Parses a list of VCD file paths concurrently and returns a HashMap
+/// where the key is the file path and the value is a tuple (event_count, duration_ms).
+pub fn parse_vcd_files(paths: &[String]) -> HashMap<String, (usize, u64)> {
+    paths
+        .par_iter()
+        .filter_map(|path| match parse_vcd_file(path) {
+            Ok(result) => Some((path.clone(), result)),
+            Err(e) => {
+                eprintln!("Error parsing {}: {}", path, e);
+                None
+            }
+        })
+        .collect()
+}
+
+// To enable serialization of the returned hashmap via JSON.
+#[derive(Serialize)]
+struct ParsedResult(#[serde(with = "tuple_format")] (usize, u64));
+
+// Helper module to serialize a tuple as an array.
+mod tuple_format {
+    use serde::Serialize; // Import Serialize trait
+    use serde::Serializer;
+    use std::convert::TryInto;
+    pub fn serialize<S>(tuple: &(usize, u64), serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let arr = [tuple.0, tuple.1.try_into().unwrap()];
+        arr.serialize(serializer)
+    }
+}
+
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn parse_vcd_files_from_perl(
+    paths: *const *const c_char,
+    len: usize,
+) -> *mut c_char {
+    // Convert the C array to a Vec<String>.
+    let slice = unsafe { std::slice::from_raw_parts(paths, len) };
+    let mut vec_paths = Vec::new();
+    for &c_str in slice {
+        if c_str.is_null() {
+            continue;
+        }
+        let c_str = unsafe { CStr::from_ptr(c_str) };
+        if let Ok(str_slice) = c_str.to_str() {
+            vec_paths.push(str_slice.to_string());
+        }
+    }
+    let result_map = parse_vcd_files(&vec_paths);
+    // Serialize the hashmap to JSON.
+    let json = serde_json::to_string(&result_map).unwrap_or_else(|_| "{}".to_string());
+    // Convert the JSON string to a C string and return a raw pointer.
+    CString::new(json).unwrap().into_raw()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn free_c_string(s: *mut c_char) {
+    if s.is_null() {
+        return;
+    }
+    unsafe { CString::from_raw(s); }
 }
 
 #[cfg(test)]
@@ -105,6 +171,19 @@ mod tests {
                 println!("Test file parsed {} events in {} ms", events, dur);
             }
             Err(e) => panic!("Error parsing file {}: {}", test_file, e),
+        }
+    }
+
+    #[test]
+    fn test_parse_vcd_files() {
+        // Provide a list of file paths to parse.
+        let paths = vec![
+            "/Users/ziad/Desktop/ML/Books/ProgrammingRust/projs/vcd/src/vcd_files/100/vcd_output_100_1.vcd".to_string(),
+            "/Users/ziad/Desktop/ML/Books/ProgrammingRust/projs/vcd/src/vcd_files/100/vcd_output_100_2.vcd".to_string(),
+        ];
+        let parsed_files = parse_vcd_files(&paths);
+        for (path, (events, dur)) in parsed_files {
+            println!("File {} parsed {} events in {} ms", path, events, dur);
         }
     }
 }
